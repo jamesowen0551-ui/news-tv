@@ -2,6 +2,8 @@ import threading
 import time
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from scripts.check_streams import (
     Channel,
@@ -9,6 +11,7 @@ from scripts.check_streams import (
     parse_media_manifest,
     parse_m3u_text,
     render_markdown,
+    main,
     validate_channel,
 )
 
@@ -228,6 +231,23 @@ class NetworkValidationTests(unittest.TestCase):
         self.assertIn("★★★★★", report)
         self.assertIn("HTML", report)
         self.assertIn("1 passed, 1 failed", report)
+
+
+class CliReportTests(unittest.TestCase):
+    def test_malformed_input_still_writes_failure_report(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            playlist = root / "broken.m3u"
+            report = root / "report.md"
+            playlist.write_text("<html>not a playlist</html>", encoding="utf-8")
+
+            exit_code = main([str(playlist), "--report", str(report)])
+
+            self.assertEqual(exit_code, 1)
+            self.assertTrue(report.exists())
+            contents = report.read_text(encoding="utf-8")
+            self.assertIn("0 passed, 1 failed", contents)
+            self.assertIn("HTML", contents)
 
 
 if __name__ == "__main__":

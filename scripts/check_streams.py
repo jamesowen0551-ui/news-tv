@@ -3,9 +3,9 @@
 
 from __future__ import annotations
 
+import argparse
 import re
 import shlex
-import argparse
 import sys
 import time
 from dataclasses import dataclass
@@ -377,6 +377,31 @@ def _load_channels(paths: list[Path]) -> list[Channel]:
     return channels
 
 
+def _emit_report(results: list[ValidationResult], report_path: Path | None) -> None:
+    report = render_markdown(results)
+    if report_path:
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.write_text(report, encoding="utf-8")
+        print(f"Wrote {report_path}")
+    else:
+        print(report)
+
+
+def _input_failure(message: str, paths: list[Path], report_path: Path | None) -> int:
+    result = ValidationResult(
+        channel=Channel(
+            name="Playlist input",
+            url="",
+            source=", ".join(str(path) for path in paths),
+        ),
+        ok=False,
+        error=message,
+    )
+    _emit_report([result], report_path)
+    print(f"FAIL Playlist input: {message}", file=sys.stderr)
+    return 1
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("playlists", nargs="+", type=Path, help="M3U playlists to validate")
@@ -387,18 +412,14 @@ def main(argv: list[str] | None = None) -> int:
     try:
         channels = _load_channels(args.playlists)
     except (OSError, UnicodeError, ValueError) as error:
-        parser.error(str(error))
+        return _input_failure(
+            f"playlist load failed: {error}", args.playlists, args.report
+        )
     if not channels:
-        parser.error("no channels found")
+        return _input_failure("no channels found", args.playlists, args.report)
 
     results = [validate_channel(channel, timeout=args.timeout) for channel in channels]
-    report = render_markdown(results)
-    if args.report:
-        args.report.parent.mkdir(parents=True, exist_ok=True)
-        args.report.write_text(report, encoding="utf-8")
-        print(f"Wrote {args.report}")
-    else:
-        print(report)
+    _emit_report(results, args.report)
     for result in results:
         outcome = "PASS" if result.ok else "FAIL"
         detail = _quality(result) if result.ok else result.error

@@ -6,6 +6,22 @@ The project optimizes for provenance and stability, not channel count. A stream 
 
 ## Playlist URLs
 
+Recommended television address (GitHub Raw, primary):
+
+```text
+https://raw.githubusercontent.com/jamesowen0551-ui/news-tv/main/news.m3u
+```
+
+Backup television address (jsDelivr CDN):
+
+```text
+https://cdn.jsdelivr.net/gh/jamesowen0551-ui/news-tv@main/news.m3u
+```
+
+Use GitHub Raw normally. Use jsDelivr only as a fallback when GitHub Raw is
+temporarily slow or unreachable from the television. Daily automation downloads
+both public entry points and requires their exact bytes and SHA-256 digests to match.
+
 Canonical combined playlist:
 
 ```text
@@ -110,10 +126,33 @@ News groups.
 DW English, and CBS News 24/7 in priority order. It is a separate quick-access
 playlist and does not change the categories in the full playlist.
 
+Favorites are generated rather than maintained by hand. Edit
+`config/favorites.yaml` using exact full `tvg-id` values already present in
+`playlists/news.m3u`, then run:
+
+```bash
+python3 scripts/generate_favorites.py
+python3 scripts/generate_favorites.py --check
+```
+
+The generator preserves configuration order and copies only existing main-playlist
+entries. Unknown IDs, duplicates, aliases, URLs, and extra YAML keys fail. It
+cannot introduce a new stream URL.
+
 `epg/epg.xml` is intentionally conservative. It currently maps the ten stable
 `tvg-id` values to their channel names but contains no programme entries. No show
 title or broadcast time is invented. Programme data will be added only when an
 official public source with suitable reuse terms is confirmed.
+
+`scripts/discover_epg.py` is a read-only future interface. It accepts exact full
+IDs and prints reviewed candidates as JSON:
+
+```bash
+python3 scripts/discover_epg.py BloombergTV.us SkyNews.uk
+```
+
+The current candidate registry is empty, so it reports `no-confirmed-source`.
+The script does not use the network, modify `epg/epg.xml`, or create programme data.
 
 ## Repository layout
 
@@ -125,8 +164,12 @@ playlists/us-news.m3u
 playlists/world-news.m3u
 playlists/favorites.m3u
 playlists/events.m3u
+config/favorites.yaml
 epg/epg.xml
 scripts/check_streams.py
+scripts/check_mirrors.py
+scripts/generate_favorites.py
+scripts/discover_epg.py
 reports/                    # generated health reports (not committed)
 ```
 
@@ -156,7 +199,7 @@ The checker uses only the Python standard library:
 ```bash
 python3 scripts/check_streams.py playlists/news.m3u \
   --timeout 15 \
-  --report reports/stream-report.md
+  --report reports/health-report.md
 ```
 
 It verifies:
@@ -172,7 +215,23 @@ It verifies:
 - Accessibility of the first media segment using a bounded byte request.
 - Per-request timeout, browser-compatible User-Agent, and total request latency.
 
-The command always writes the requested Markdown report and exits nonzero when any channel fails. A five-star operational score starts at five and deducts one star for each of these conditions: advertised resolution below 720p or missing, advertised bandwidth below 1 Mbps or missing, total probe latency above three seconds, or more than two redirects. A missing manifest, variant, or media segment is a failure rather than a low score. Scores describe delivery health, not editorial quality.
+The command always writes the requested Markdown report and exits nonzero when any
+channel fails. Strict PASS/FAIL behavior is unchanged. The existing five-star
+rating remains, and a separate 0–100 health score uses these weights:
+
+| Dimension | Points |
+|---|---:|
+| Initial HTTP access | 15 |
+| Master manifest | 15 |
+| Variant playlist | 15 |
+| First segment | 20 |
+| Resolution | 15 |
+| Total response time | 15 |
+| Redirect count | 5 |
+
+Passed channels scoring 90 or above are `Healthy`; passed channels scoring 75–89
+are `Degraded`. Failed channels and scores below 75 are `Unhealthy`. Scores are
+reporting metadata only: they never delete, replace, or reorder a channel.
 
 Run the deterministic test suite with:
 
@@ -182,9 +241,23 @@ python3 -m unittest discover -s tests -v
 
 ## Automated monitoring
 
-GitHub Actions runs the live check every day at 04:00 Beijing time (`20:00 UTC`) and can also be started manually. The workflow always uploads `stream-report.md` as an artifact. When any channel fails, the workflow reports failure after uploading the artifact.
+GitHub Actions runs the live check every day at 04:00 Beijing time (`20:00 UTC`)
+and can also be started manually exactly as before. It checks generated Favorites,
+validates all live streams, compares GitHub Raw with jsDelivr, and uploads both
+`reports/stream-report.md` and `reports/health-report.md` in the existing
+`stream-health-report` artifact. The legacy report path remains supported.
 
 Automation never edits playlists, replaces URLs, or adds an unreviewed source.
+
+## Maintenance principles
+
+- Prefer official public HLS and broadcaster-controlled delivery.
+- Keep the catalog small when provenance or stability is uncertain.
+- Treat health scores as observations, never as automatic removal instructions.
+- Keep Favorites derived from the canonical playlist and exact stable IDs.
+- Require GitHub Raw and CDN bytes to match; never use the CDN as a different source.
+- Keep EPG discovery read-only until an official reusable schedule is confirmed.
+- Never auto-replace a failed channel with an unreviewed URL.
 
 ## Future event playlist
 

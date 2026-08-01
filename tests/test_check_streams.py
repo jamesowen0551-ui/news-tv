@@ -4,7 +4,9 @@ import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from types import SimpleNamespace
 
+import scripts.check_streams as checker
 from scripts.check_streams import (
     Channel,
     _load_channels,
@@ -111,6 +113,71 @@ segments/second.ts
             )
 
 
+class HealthScoringTests(unittest.TestCase):
+    def _result(self, **overrides):
+        values = {
+            "channel": Channel("Example", "https://media.example/master.m3u8"),
+            "ok": True,
+            "http_status": 200,
+            "redirects": 0,
+            "latency_ms": 500,
+            "variant_count": 2,
+            "resolution": "1920x1080",
+            "segment_url": "https://media.example/segment.ts",
+            "manifest_ok": True,
+            "variant_ok": True,
+            "segment_ok": True,
+        }
+        values.update(overrides)
+        return SimpleNamespace(**values)
+
+    def test_full_health_evidence_scores_100(self):
+        score = getattr(checker, "health_score", lambda result: None)(self._result())
+        status = getattr(checker, "health_status", lambda result: None)(self._result())
+
+        self.assertEqual(score, 100)
+        self.assertEqual(status, "Healthy")
+
+    def test_720p_loses_only_resolution_points(self):
+        result = self._result(resolution="1280x720")
+
+        self.assertEqual(
+            getattr(checker, "health_score", lambda value: None)(result), 97
+        )
+        self.assertEqual(
+            getattr(checker, "health_status", lambda value: None)(result),
+            "Healthy",
+        )
+
+    def test_latency_and_redirects_can_degrade_a_passing_stream(self):
+        result = self._result(resolution="1280x720", latency_ms=4_000, redirects=2)
+
+        self.assertEqual(
+            getattr(checker, "health_score", lambda value: None)(result), 88
+        )
+        self.assertEqual(
+            getattr(checker, "health_status", lambda value: None)(result),
+            "Degraded",
+        )
+
+    def test_failed_stream_is_unhealthy_even_with_partial_evidence(self):
+        result = self._result(
+            ok=False,
+            variant_count=0,
+            resolution="",
+            segment_url="",
+            variant_ok=False,
+            segment_ok=False,
+        )
+
+        score = getattr(checker, "health_score", lambda value: None)(result)
+        self.assertEqual(score, 50)
+        self.assertEqual(
+            getattr(checker, "health_status", lambda value: None)(result),
+            "Unhealthy",
+        )
+
+
 class _HlsHandler(BaseHTTPRequestHandler):
     seen_user_agents: list[str] = []
     routes: dict[str, tuple[int, str, bytes, dict[str, str]]] = {}
@@ -212,6 +279,9 @@ class NetworkValidationTests(unittest.TestCase):
         self.assertEqual(result.resolution, "1920x1080")
         self.assertEqual(result.bandwidth, 4_500_000)
         self.assertEqual(result.segment_url, f"{self.base_url}/high/first.ts")
+        self.assertTrue(result.manifest_ok)
+        self.assertTrue(result.variant_ok)
+        self.assertTrue(result.segment_ok)
         self.assertEqual(result.score, 5)
         self.assertTrue(all("news-tv-stream-checker" in ua for ua in _HlsHandler.seen_user_agents))
 
@@ -247,6 +317,9 @@ class NetworkValidationTests(unittest.TestCase):
 
         self.assertFalse(result.ok)
         self.assertIn("STREAM-INF", result.error)
+        self.assertFalse(result.manifest_ok)
+        self.assertFalse(result.variant_ok)
+        self.assertFalse(result.segment_ok)
 
     def test_reports_request_timeout(self):
         result = validate_channel(
@@ -271,6 +344,11 @@ class NetworkValidationTests(unittest.TestCase):
         self.assertIn("| HTTP | Content-Type |", report)
         self.assertIn("application/vnd.apple.mpegurl", report)
         self.assertIn("★★★★★", report)
+        self.assertIn("| Health | Score |", report)
+        self.assertIn("| Master | Variant | Segment |", report)
+        self.assertIn("Resolution", report)
+        self.assertIn("99/100", report)
+        self.assertIn("Healthy", report)
         self.assertIn("HTML", report)
         self.assertIn("1 passed, 1 failed", report)
 

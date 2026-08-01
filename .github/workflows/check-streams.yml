@@ -27,6 +27,11 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Check generated favorites
+        id: favorites_check
+        continue-on-error: true
+        run: python3 scripts/generate_favorites.py --check
+
       - name: Validate published streams
         id: stream_check
         continue-on-error: true
@@ -35,17 +40,35 @@ jobs:
             --timeout 15 \
             --report reports/stream-report.md
 
+      - name: Create channel health report
+        if: always()
+        run: |
+          if [ -f reports/stream-report.md ]; then
+            cp reports/stream-report.md reports/health-report.md
+          else
+            mkdir -p reports
+            printf '# Stream Health Report\n\nThe stream checker failed before it could generate a report. Review the job log.\n' | tee reports/stream-report.md reports/health-report.md
+          fi
+
+      - name: Check GitHub Raw and jsDelivr mirror
+        if: always()
+        id: mirror_check
+        continue-on-error: true
+        run: python3 scripts/check_mirrors.py
+
       - name: Upload Markdown report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: stream-health-report
-          path: reports/stream-report.md
+          path: |
+            reports/stream-report.md
+            reports/health-report.md
           if-no-files-found: error
           retention-days: 30
 
-      - name: Propagate stream check failure
-        if: steps.stream_check.outcome == 'failure'
+      - name: Propagate maintenance check failure
+        if: always() && (steps.stream_check.outcome == 'failure' || steps.favorites_check.outcome == 'failure' || steps.mirror_check.outcome == 'failure')
         run: |
-          echo "One or more published streams failed validation. Review the uploaded report."
+          echo "A stream, generated playlist, or mirror check failed. Review the uploaded report and job log."
           exit 1

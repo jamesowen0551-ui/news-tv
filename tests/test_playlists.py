@@ -14,6 +14,18 @@ FAVORITES = [
     "DW English",
     "CBS News 24/7",
 ]
+EXPECTED_TVG_IDS = {
+    "Bloomberg TV": "BloombergTV.us",
+    "Schwab Network": "SchwabNetwork.us",
+    "CBS News 24/7": "CBSNews247.us",
+    "NBC News NOW": "NBCNewsNOW.us",
+    "Scripps News": "ScrippsNews.us",
+    "Sky News": "SkyNews.uk",
+    "DW English": "DWEnglish.de",
+    "NHK World-Japan": "NHKWorldJapan.jp",
+    "Euronews English": "EuronewsEnglish.fr",
+    "Al Jazeera English": "AlJazeeraEnglish.qa",
+}
 
 
 class PublishedPlaylistTests(unittest.TestCase):
@@ -78,6 +90,9 @@ class PublishedPlaylistTests(unittest.TestCase):
                 self.assertEqual(getattr(channel, "tvg_name", None), channel.name)
                 self.assertIn(channel.group, {"Finance", "US News", "World News"})
                 self.assertEqual(channel.logo, "", "logos require confirmed usage permission")
+        self.assertEqual(
+            {channel.name: channel.tvg_id for channel in channels}, EXPECTED_TVG_IDS
+        )
 
     def test_published_playlists_reference_the_epg(self):
         paths = (
@@ -127,16 +142,35 @@ class PublishedPlaylistTests(unittest.TestCase):
         )
 
         self.assertIn("schedule:", workflow)
+        self.assertIn("name: Check news streams", workflow)
         self.assertIn('cron: "0 20 * * *"', workflow)
         self.assertIn("workflow_dispatch:", workflow)
         self.assertIn("scripts/check_streams.py playlists/news.m3u", workflow)
         self.assertIn("upload-artifact@v4", workflow)
+        self.assertIn("python3 scripts/generate_favorites.py --check", workflow)
+        self.assertIn("python3 scripts/check_mirrors.py", workflow)
+        self.assertIn("reports/health-report.md", workflow)
+        self.assertIn("reports/stream-report.md", workflow)
+        self.assertIn("name: stream-health-report", workflow)
+        self.assertIn(
+            "- name: Check GitHub Raw and jsDelivr mirror\n"
+            "        if: always()",
+            workflow,
+        )
+        self.assertIn(
+            "if: always() && (steps.stream_check.outcome == 'failure'",
+            workflow,
+        )
 
     def test_readme_documents_new_and_legacy_urls(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         urls = (
             "https://raw.githubusercontent.com/jamesowen0551-ui/news-tv/main/news.m3u",
             "https://raw.githubusercontent.com/jamesowen0551-ui/news-tv/main/playlists/news.m3u",
+            "https://raw.githubusercontent.com/jamesowen0551-ui/news-tv/main/playlists/favorites.m3u",
+            "https://raw.githubusercontent.com/jamesowen0551-ui/news-tv/main/playlists/finance.m3u",
+            "https://raw.githubusercontent.com/jamesowen0551-ui/news-tv/main/playlists/us-news.m3u",
+            "https://raw.githubusercontent.com/jamesowen0551-ui/news-tv/main/playlists/world-news.m3u",
             EPG_URL,
         )
         for url in urls:
@@ -151,6 +185,17 @@ class PublishedPlaylistTests(unittest.TestCase):
         ):
             with self.subTest(player=player):
                 self.assertIn(player, readme)
+        for maintenance_item in (
+            "https://cdn.jsdelivr.net/gh/jamesowen0551-ui/news-tv@main/news.m3u",
+            "config/favorites.yaml",
+            "scripts/generate_favorites.py",
+            "scripts/discover_epg.py",
+            "reports/health-report.md",
+            "GitHub Raw",
+            "jsDelivr",
+        ):
+            with self.subTest(maintenance_item=maintenance_item):
+                self.assertIn(maintenance_item, readme)
 
     def test_reports_directory_is_preserved_without_tracking_reports(self):
         self.assertTrue(

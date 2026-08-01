@@ -63,6 +63,9 @@ class ValidationResult:
     resolution: str = ""
     bandwidth: int | None = None
     segment_url: str = ""
+    manifest_ok: bool = False
+    variant_ok: bool = False
+    segment_ok: bool = False
     score: int = 0
     error: str = ""
 
@@ -246,16 +249,81 @@ def _score(resolution: str, bandwidth: int | None, latency_ms: int, redirects: i
     return max(1, score)
 
 
+def _resolution_height(resolution: str) -> int:
+    if "x" not in resolution:
+        return 0
+    try:
+        return int(resolution.lower().split("x", 1)[1])
+    except ValueError:
+        return 0
+
+
+def health_score(result: ValidationResult) -> int:
+    score = 0
+    http_ok = result.http_status == 200
+    if http_ok:
+        score += 15
+    if result.manifest_ok:
+        score += 15
+    if result.variant_ok:
+        score += 15
+    if result.segment_ok:
+        score += 20
+
+    height = _resolution_height(result.resolution)
+    if height >= 1080:
+        score += 15
+    elif height >= 720:
+        score += 12
+    elif height >= 480:
+        score += 6
+
+    if result.latency_ms is not None:
+        if result.latency_ms <= 1_000:
+            score += 15
+        elif result.latency_ms <= 3_000:
+            score += 12
+        elif result.latency_ms <= 5_000:
+            score += 8
+        elif result.latency_ms <= 10_000:
+            score += 4
+
+    if http_ok:
+        if result.redirects == 0:
+            score += 5
+        elif result.redirects == 1:
+            score += 4
+        elif result.redirects == 2:
+            score += 3
+        elif result.redirects == 3:
+            score += 1
+    return score
+
+
+def health_status(result: ValidationResult) -> str:
+    score = health_score(result)
+    if not result.ok or score < 75:
+        return "Unhealthy"
+    if score >= 90:
+        return "Healthy"
+    return "Degraded"
+
+
 def validate_channel(channel: Channel, timeout: float = 10) -> ValidationResult:
     total_redirects = 0
     total_latency = 0
     initial: _Response | None = None
+    variants: list[Variant] = []
+    manifest_ok = False
+    variant_ok = False
+    segment_ok = False
     try:
         initial = _fetch(channel.url, timeout)
         total_redirects += initial.redirects
         total_latency += initial.latency_ms
         master_text = _decode_manifest(initial)
         variants = parse_master_manifest(master_text, initial.final_url)
+        manifest_ok = True
         selected: Variant | None = None
         segment_url = ""
         variant_errors: list[str] = []
@@ -264,9 +332,14 @@ def validate_channel(channel: Channel, timeout: float = 10) -> ValidationResult:
         ):
             try:
                 media = _fetch(candidate.url, timeout)
+                total_redirects += media.redirects
+                total_latency += media.latency_ms
                 media_text = _decode_manifest(media)
                 candidate_segment_url = parse_media_manifest(media_text, media.final_url)[0]
+                variant_ok = True
                 segment = _fetch(candidate_segment_url, timeout, segment=True)
+                total_redirects += segment.redirects
+                total_latency += segment.latency_ms
                 if segment.status not in (200, 206) or not segment.body:
                     raise ValueError(
                         f"first segment returned HTTP {segment.status} or no data"
@@ -278,8 +351,7 @@ def validate_channel(channel: Channel, timeout: float = 10) -> ValidationResult:
                 continue
             selected = candidate
             segment_url = candidate_segment_url
-            total_redirects += media.redirects + segment.redirects
-            total_latency += media.latency_ms + segment.latency_ms
+            segment_ok = True
             break
         if selected is None:
             details = "; ".join(variant_errors[:3])
@@ -298,6 +370,9 @@ def validate_channel(channel: Channel, timeout: float = 10) -> ValidationResult:
             resolution=selected.resolution,
             bandwidth=bandwidth,
             segment_url=segment_url,
+            manifest_ok=manifest_ok,
+            variant_ok=variant_ok,
+            segment_ok=segment_ok,
             score=_score(selected.resolution, bandwidth, total_latency, total_redirects),
         )
     except (HTTPError, URLError, TimeoutError, OSError, ValueError) as error:
@@ -317,6 +392,10 @@ def validate_channel(channel: Channel, timeout: float = 10) -> ValidationResult:
             final_url=error_url,
             redirects=total_redirects,
             latency_ms=total_latency or None,
+            variant_count=len(variants),
+            manifest_ok=manifest_ok,
+            variant_ok=variant_ok,
+            segment_ok=segment_ok,
             error=str(error),
         )
 
@@ -346,8 +425,8 @@ def render_markdown(
         "",
         f"Summary: **{passed} passed, {failed} failed**.",
         "",
-        "| Status | Channel | Category | Score | Quality | HTTP | Content-Type | Latency | Redirects | Details |",
-        "|---|---|---|---:|---|---:|---|---:|---:|---|",
+        "| Check | Channel | Category | Health | Score | Rating | Resolution / Bitrate | HTTP | Content-Type | Master | Variant | Segment | Latency | Redirects | Details |",
+        "|---|---|---|---|---:|---:|---|---:|---|---|---|---|---:|---:|---|",
     ]
     for result in results:
         status = "PASS" if result.ok else "FAIL"
@@ -366,10 +445,15 @@ def render_markdown(
                     status,
                     result.channel.name,
                     result.channel.group or "—",
+                    health_status(result),
+                    f"{health_score(result)}/100",
                     stars,
                     _quality(result),
                     result.http_status if result.http_status is not None else "—",
                     result.content_type or "—",
+                    "PASS" if result.manifest_ok else "FAIL",
+                    "PASS" if result.variant_ok else "FAIL",
+                    "PASS" if result.segment_ok else "FAIL",
                     latency,
                     result.redirects,
                     details,
@@ -380,7 +464,7 @@ def render_markdown(
     lines.extend(
         [
             "",
-            "> Scores reflect current stream structure, advertised quality, redirects, and request latency—not editorial quality.",
+            "> Health scores are informational. Strict HLS validation still controls PASS/FAIL; scores never remove or replace channels.",
             "",
         ]
     )

@@ -130,6 +130,19 @@ class NetworkValidationTests(unittest.TestCase):
 ''',
                 {},
             ),
+            "/fallback.m3u8": (
+                200,
+                "application/vnd.apple.mpegurl",
+                b'''#EXTM3U
+#EXT-X-STREAM-INF:BANDWIDTH=4500000,RESOLUTION=1920x1080
+/missing/index.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=4500000,RESOLUTION=1920x1080
+/high/index.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=900000,RESOLUTION=640x360
+/low/index.m3u8
+''',
+                {},
+            ),
             "/high/index.m3u8": (
                 200,
                 "application/vnd.apple.mpegurl",
@@ -172,6 +185,16 @@ class NetworkValidationTests(unittest.TestCase):
         self.assertFalse(result.ok)
         self.assertIn("HTML", result.error)
 
+    def test_falls_back_when_the_first_highest_bitrate_variant_is_broken(self):
+        result = validate_channel(
+            Channel("Redundant", f"{self.base_url}/fallback.m3u8"), timeout=2
+        )
+
+        self.assertTrue(result.ok, result.error)
+        self.assertEqual(result.variant_count, 3)
+        self.assertEqual(result.bandwidth, 4_500_000)
+        self.assertEqual(result.segment_url, f"{self.base_url}/high/first.ts")
+
     def test_requires_a_variant_playlist(self):
         result = validate_channel(
             Channel("Direct Media", f"{self.base_url}/direct.m3u8"), timeout=2
@@ -200,6 +223,8 @@ class NetworkValidationTests(unittest.TestCase):
         self.assertIn("Good \\| News", report)
         self.assertIn("1920x1080", report)
         self.assertIn("4.50 Mbps", report)
+        self.assertIn("| HTTP | Content-Type |", report)
+        self.assertIn("application/vnd.apple.mpegurl", report)
         self.assertIn("★★★★★", report)
         self.assertIn("HTML", report)
         self.assertIn("1 passed, 1 failed", report)

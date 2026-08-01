@@ -242,19 +242,34 @@ def validate_channel(channel: Channel, timeout: float = 10) -> ValidationResult:
         total_latency += initial.latency_ms
         master_text = _decode_manifest(initial)
         variants = parse_master_manifest(master_text, initial.final_url)
-        selected = max(variants, key=lambda item: item.bandwidth or 0)
-
-        media = _fetch(selected.url, timeout)
-        total_redirects += media.redirects
-        total_latency += media.latency_ms
-        media_text = _decode_manifest(media)
-        segment_url = parse_media_manifest(media_text, media.final_url)[0]
-
-        segment = _fetch(segment_url, timeout, segment=True)
-        total_redirects += segment.redirects
-        total_latency += segment.latency_ms
-        if segment.status not in (200, 206) or not segment.body:
-            raise ValueError(f"first segment returned HTTP {segment.status} or no data")
+        selected: Variant | None = None
+        segment_url = ""
+        variant_errors: list[str] = []
+        for candidate in sorted(
+            variants, key=lambda item: item.bandwidth or 0, reverse=True
+        ):
+            try:
+                media = _fetch(candidate.url, timeout)
+                media_text = _decode_manifest(media)
+                candidate_segment_url = parse_media_manifest(media_text, media.final_url)[0]
+                segment = _fetch(candidate_segment_url, timeout, segment=True)
+                if segment.status not in (200, 206) or not segment.body:
+                    raise ValueError(
+                        f"first segment returned HTTP {segment.status} or no data"
+                    )
+            except (HTTPError, URLError, TimeoutError, OSError, ValueError) as error:
+                if isinstance(error, HTTPError):
+                    error.close()
+                variant_errors.append(f"{candidate.url}: {error}")
+                continue
+            selected = candidate
+            segment_url = candidate_segment_url
+            total_redirects += media.redirects + segment.redirects
+            total_latency += media.latency_ms + segment.latency_ms
+            break
+        if selected is None:
+            details = "; ".join(variant_errors[:3])
+            raise ValueError(f"no playable HLS variant ({details})")
 
         bandwidth = selected.average_bandwidth or selected.bandwidth
         return ValidationResult(
@@ -309,8 +324,8 @@ def render_markdown(
         "",
         f"Summary: **{passed} passed, {failed} failed**.",
         "",
-        "| Status | Channel | Category | Score | Quality | Latency | Redirects | Details |",
-        "|---|---|---|---:|---|---:|---:|---|",
+        "| Status | Channel | Category | Score | Quality | HTTP | Content-Type | Latency | Redirects | Details |",
+        "|---|---|---|---:|---|---:|---|---:|---:|---|",
     ]
     for result in results:
         status = "PASS" if result.ok else "FAIL"
@@ -331,6 +346,8 @@ def render_markdown(
                     result.channel.group or "—",
                     stars,
                     _quality(result),
+                    result.http_status if result.http_status is not None else "—",
+                    result.content_type or "—",
                     latency,
                     result.redirects,
                     details,

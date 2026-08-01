@@ -1,0 +1,7 @@
+#EXTM3U
+#EXTINF:-1 tvg-id="CBSNews247.us" group-title="US News",CBS News 24/7
+https://cbsn-us.cbsnstream.cbsnews.com/out/v1/55a8648e8f134e82a470f83d562deeca/master.m3u8
+#EXTINF:-1 tvg-id="NBCNewsNOW.us" group-title="US News",NBC News NOW
+https://xumo-drct-nbcnn-ir8ze.fast.nbcuni.com/live/master.m3u8
+#EXTINF:-1 tvg-id="ScrippsNews.us" group-title="US News",Scripps News
+https://content.uplynk.com/channel/4bb4901b934c4e029fd4c1abfc766c37.m3u8

@@ -175,6 +175,11 @@ class PublishedPlaylistTests(unittest.TestCase):
             workflow,
             "China compatibility must remain a separate manual signal",
         )
+        self.assertNotIn(
+            "scripts/check_candidates.py",
+            workflow,
+            "candidate checks must not affect scheduled Global Health",
+        )
 
     def test_readme_documents_new_and_legacy_urls(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
@@ -232,6 +237,43 @@ class PublishedPlaylistTests(unittest.TestCase):
         self.assertIn("english-livebkali.cgtn.com", sources)
         self.assertIn("historical CloudFront", sources)
 
+    def test_candidate_sources_and_lifecycle_are_documented(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        sources = (ROOT / "docs/candidate-sources.md").read_text(
+            encoding="utf-8"
+        )
+
+        for item in (
+            "channels/candidates.json",
+            "scripts/check_candidates.py",
+            "reports/china-candidate-testing.md",
+            "candidate",
+            "testing",
+            "approved",
+            "rejected",
+            "asia",
+            "finance",
+            "technology",
+            "technical PASS",
+            "manual promotion",
+        ):
+            with self.subTest(item=item):
+                self.assertIn(item, readme)
+        for item in (
+            "https://www.arirang.com/live",
+            "main.add9a540.chunk.js",
+            "amdlive-ch01-g-ctnd-com.akamaized.net",
+            "KBS World",
+            "ABC Australia",
+            "SBS Australia",
+            "NASA",
+            "TRT World",
+            "NYSE",
+            "Nasdaq",
+        ):
+            with self.subTest(item=item):
+                self.assertIn(item, sources)
+
     def test_reports_directory_is_preserved_without_tracking_reports(self):
         self.assertTrue(
             (ROOT / "reports/.gitkeep").is_file(),
@@ -251,6 +293,49 @@ class PublishedPlaylistTests(unittest.TestCase):
             self.assertIn(field, report)
         self.assertIn("manual", report.casefold())
         self.assertIn("Global Health", report)
+        candidate_report = (ROOT / "reports/china-candidate-testing.md").read_text(
+            encoding="utf-8"
+        )
+        for field in (
+            "Channel",
+            "Test date",
+            "Test environment",
+            "Playable PASS/FAIL",
+            "First-frame time",
+            "Resolution",
+            "Stability",
+            "Notes",
+        ):
+            self.assertIn(field, candidate_report)
+        self.assertIn("No manual candidate tests", candidate_report)
+        self.assertIn("automated", candidate_report.casefold())
+
+    def test_candidates_never_enter_generated_playlists_even_when_approved(self):
+        from scripts.candidate_catalog import load_candidate_pool_text
+        from scripts.channel_catalog import load_catalog_text
+        from scripts.generate_playlists import expected_outputs
+
+        catalog_text = (ROOT / "channels/catalog.json").read_text(encoding="utf-8")
+        catalog = load_catalog_text(catalog_text)
+        document = json.loads(
+            (ROOT / "channels/candidates.json").read_text(encoding="utf-8")
+        )
+        document["candidates"][0]["status"] = "approved"
+        pool = load_candidate_pool_text(json.dumps(document), catalog)
+        self.assertEqual(len(pool.approved_candidates()), 1)
+
+        generated = "\n".join(expected_outputs(catalog).values())
+        for candidate in pool.candidates:
+            self.assertNotIn(candidate.id, generated)
+            self.assertNotIn(candidate.stream_url, generated)
+
+        published = "\n".join(
+            path.read_text(encoding="utf-8")
+            for path in (ROOT / "playlists").glob("*.m3u")
+        )
+        for candidate in pool.candidates:
+            self.assertNotIn(candidate.id, published)
+            self.assertNotIn(candidate.stream_url, published)
 
     def test_forbidden_pay_tv_channels_are_absent(self):
         names = {

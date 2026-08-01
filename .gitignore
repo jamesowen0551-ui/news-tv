@@ -3,4 +3,5 @@ __pycache__/
 reports/*
 !reports/.gitkeep
 !reports/china-compatibility.md
+!reports/china-candidate-testing.md
 research/

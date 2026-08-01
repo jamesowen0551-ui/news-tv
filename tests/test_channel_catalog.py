@@ -45,7 +45,13 @@ class CatalogValidationTests(unittest.TestCase):
         return {
             "schema_version": 1,
             "epg_url": "https://raw.githubusercontent.com/jamesowen0551-ui/news-tv/main/epg/epg.xml",
-            "profiles": {"global": ["Example.us"], "china_optimized": ["Example.us"]},
+            "profiles": {
+                "global": ["Example.us"],
+                "china_optimized": ["Example.us"],
+                "asia": ["Example.us"],
+                "finance": [],
+                "technology": [],
+            },
             "channels": [
                 {
                     "tvg_id": "Example.us",
@@ -67,11 +73,24 @@ class CatalogValidationTests(unittest.TestCase):
 
         self.assertEqual(list(catalog.profiles["global"]), GLOBAL_IDS)
         self.assertEqual(list(catalog.profiles["china_optimized"]), CHINA_IDS)
+        self.assertEqual(
+            list(catalog.profiles["asia"]),
+            ["NHKWorldJapan.jp", "CNAEnglish.sg", "CGTNEnglish.cn"],
+        )
+        self.assertEqual(
+            list(catalog.profiles["finance"]),
+            ["BloombergTV.us", "SchwabNetwork.us"],
+        )
+        self.assertEqual(list(catalog.profiles["technology"]), [])
         self.assertEqual(len(catalog.channels), 12)
         self.assertEqual(len({channel.tvg_id for channel in catalog.channels}), 12)
         self.assertEqual(catalog.channel_by_id("CNAEnglish.sg").tvg_name, "CNA English")
         self.assertEqual(catalog.channel_by_id("CNAEnglish.sg").url, CNA_OFFICIAL_HLS)
         self.assertEqual(catalog.channel_by_id("CGTNEnglish.cn").tvg_name, "CGTN English")
+        raw_catalog = json.loads(path.read_text(encoding="utf-8"))
+        self.assertTrue(
+            all("profiles" not in channel for channel in raw_catalog["channels"])
+        )
 
     def test_unknown_lookup_uses_exact_id_only(self):
         module = self._module()
@@ -182,6 +201,13 @@ class PlaylistGenerationTests(unittest.TestCase):
                 self.assertEqual(channel.url, fact.url)
                 self.assertEqual(channel.group, "China Recommended")
                 self.assertEqual(channel.logo, "")
+
+        committed = (ROOT / "playlists/news-cn.m3u").read_bytes()
+        self.assertEqual(rendered.encode("utf-8"), committed)
+        self.assertEqual(
+            hashlib.sha256(committed).hexdigest(),
+            "80d9aa33f2807cda315e6417bd537f295989161612d5956147861157c6bb4074",
+        )
 
     def test_generator_check_mode_detects_stale_outputs_without_writing(self):
         from scripts import generate_playlists

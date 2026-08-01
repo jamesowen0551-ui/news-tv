@@ -126,7 +126,13 @@ def load_catalog_text(text: str) -> Catalog:
     raw_profiles = document["profiles"]
     if not isinstance(raw_profiles, dict):
         raise ValueError("profiles must be an object")
-    for required_profile in ("global", "china_optimized"):
+    for required_profile in (
+        "global",
+        "china_optimized",
+        "asia",
+        "finance",
+        "technology",
+    ):
         if required_profile not in raw_profiles:
             raise ValueError(f"missing profile: {required_profile}")
     profiles: dict[str, tuple[str, ...]] = {}

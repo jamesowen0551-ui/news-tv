@@ -20,6 +20,16 @@
       "CGTNEnglish.cn",
       "SchwabNetwork.us"
     ],
+    "asia": [
+      "NHKWorldJapan.jp",
+      "CNAEnglish.sg",
+      "CGTNEnglish.cn"
+    ],
+    "finance": [
+      "BloombergTV.us",
+      "SchwabNetwork.us"
+    ],
+    "technology": [],
     "events": []
   },
   "channels": [

@@ -88,6 +88,10 @@ China-optimized profile: NHK World-Japan, CNA English, CGTN English, and Schwab
 Network. CNA English and CGTN English are China-profile records and are not added
 to or substituted into the unchanged Global Playlist.
 
+The catalog also has classification-only top-level profiles: `asia`, `finance`,
+and `technology`. These contain only formal catalog IDs and do not create new
+playlists in this release.
+
 See [docs/sources.md](docs/sources.md) for first-party availability evidence, delivery decisions, and candidates withheld from this release.
 
 ## Sony Android TV setup
@@ -196,6 +200,7 @@ playlists/favorites.m3u
 playlists/favorites-cn.m3u
 playlists/events.m3u
 channels/catalog.json       # single source of truth for channel facts
+channels/candidates.json    # unpublished, independently validated candidates
 config/favorites.yaml
 config/favorites-cn.yaml
 epg/epg.xml
@@ -206,7 +211,9 @@ scripts/generate_favorites.py
 scripts/generate_favorites_cn.py
 scripts/generate_epg.py
 scripts/discover_epg.py
+scripts/check_candidates.py
 reports/china-compatibility.md  # tracked manual China observations
+reports/china-candidate-testing.md  # manual candidate observations only
 reports/                    # generated Global Health reports are not committed
 ```
 
@@ -221,6 +228,43 @@ python3 scripts/generate_favorites.py --check
 python3 scripts/generate_favorites_cn.py --check
 python3 scripts/generate_epg.py --check
 ```
+
+## China candidate workflow
+
+`channels/candidates.json` is an isolated research pool. It accepts only records
+with a confirmed official page and a concrete official token-free HLS URL. It is
+never read by Global, China, Favorites, category, event, or EPG generators.
+
+Candidate status is manual:
+
+```text
+candidate -> testing -> approved -> manual promotion to catalog/profile
+                         \-> rejected
+```
+
+`approved` means eligible for human review and manual promotion. Even an approved
+candidate cannot enter a playlist until its facts are explicitly added to
+`channels/catalog.json` and its exact ID is added to a formal profile.
+
+Run the shared strict HLS checker with:
+
+```bash
+python3 scripts/check_candidates.py \
+  --timeout 15 \
+  --report reports/candidate-report.md
+```
+
+The command checks HTTP, Content-Type, HTML rejection, HLS Master Manifest,
+Variant Playlist, and the first Segment by calling the same validator used for
+published channels. A technical PASS does not approve, publish, delete, replace,
+or reorder anything. China household observations belong only in
+`reports/china-candidate-testing.md` after a real test.
+
+The initial pool contains one candidate, Arirang TV. See
+[`docs/candidate-sources.md`](docs/candidate-sources.md) for its official delivery
+chain and for KBS World, ABC Australia, SBS Australia, NASA, ESA, TRT World,
+NYSE, Nasdaq, Reuters, WION, India Today, Apple, Google I/O, and NVIDIA research
+decisions.
 
 ## Inclusion policy
 
@@ -307,6 +351,7 @@ or resolution measurements stay marked `Not recorded`.
 
 - Prefer official public HLS and broadcaster-controlled delivery.
 - Keep `channels/catalog.json` as the only channel fact source and generate every playlist.
+- Keep candidate records isolated; require manual promotion into catalog/profile.
 - Keep the catalog small when provenance or stability is uncertain.
 - Treat health scores as observations, never as automatic removal instructions.
 - Keep Favorites derived from the canonical playlist and exact stable IDs.

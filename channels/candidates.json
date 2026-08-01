@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "candidates": [
+    {
+      "id": "ArirangTV.kr",
+      "name": "Arirang TV",
+      "country": "South Korea",
+      "category": "Asia",
+      "official_url": "https://www.arirang.com/live",
+      "stream_url": "https://amdlive-ch01-g-ctnd-com.akamaized.net/arirang_1gch/smil:arirang_1gch.smil/playlist.m3u8",
+      "source_notes": "The official Arirang live page loads main.add9a540.chunk.js; its World TV player payload publishes this token-free global Akamai HLS URL.",
+      "status": "candidate"
+    }
+  ]
+}

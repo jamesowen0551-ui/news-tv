@@ -188,6 +188,15 @@ class NetworkValidationTests(unittest.TestCase):
         self.assertFalse(result.ok)
         self.assertIn("HTML", result.error)
 
+    def test_records_http_status_for_an_error_response(self):
+        result = validate_channel(
+            Channel("Missing", f"{self.base_url}/missing.m3u8"), timeout=2
+        )
+
+        self.assertFalse(result.ok)
+        self.assertEqual(result.http_status, 404)
+        self.assertEqual(result.content_type, "text/plain")
+
     def test_falls_back_when_the_first_highest_bitrate_variant_is_broken(self):
         result = validate_channel(
             Channel("Redundant", f"{self.base_url}/fallback.m3u8"), timeout=2

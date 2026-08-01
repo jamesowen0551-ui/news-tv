@@ -287,12 +287,20 @@ def validate_channel(channel: Channel, timeout: float = 10) -> ValidationResult:
             score=_score(selected.resolution, bandwidth, total_latency, total_redirects),
         )
     except (HTTPError, URLError, TimeoutError, OSError, ValueError) as error:
+        error_status = initial.status if initial else None
+        error_content_type = initial.content_type if initial else ""
+        error_url = initial.final_url if initial else ""
+        if isinstance(error, HTTPError):
+            error_status = error.code
+            error_content_type = error.headers.get_content_type().lower()
+            error_url = error.geturl()
+            error.close()
         return ValidationResult(
             channel=channel,
             ok=False,
-            http_status=initial.status if initial else None,
-            content_type=initial.content_type if initial else "",
-            final_url=initial.final_url if initial else "",
+            http_status=error_status,
+            content_type=error_content_type,
+            final_url=error_url,
             redirects=total_redirects,
             latency_ms=total_latency or None,
             error=str(error),

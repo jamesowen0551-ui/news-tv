@@ -19,13 +19,13 @@ class EpgDiscoveryTests(unittest.TestCase):
     def test_known_ids_return_empty_confirmed_candidate_lists_in_input_order(self):
         module = self._module()
         results = module.discover_candidates(
-            ["SkyNews.uk", "BloombergTV.us"],
-            (ROOT / "playlists/news.m3u").read_text(encoding="utf-8"),
+            ["SkyNews.uk", "CNAEnglish.sg", "CGTNEnglish.cn"],
+            (ROOT / "channels/catalog.json").read_text(encoding="utf-8"),
         )
 
         self.assertEqual(
             [result["tvg_id"] for result in results],
-            ["SkyNews.uk", "BloombergTV.us"],
+            ["SkyNews.uk", "CNAEnglish.sg", "CGTNEnglish.cn"],
         )
         for result in results:
             self.assertEqual(result["status"], "no-confirmed-source")
@@ -36,7 +36,7 @@ class EpgDiscoveryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unknown tvg-id.*SkyNews"):
             module.discover_candidates(
                 ["SkyNews"],
-                (ROOT / "playlists/news.m3u").read_text(encoding="utf-8"),
+                (ROOT / "channels/catalog.json").read_text(encoding="utf-8"),
             )
 
     def test_cli_outputs_json_and_does_not_modify_epg(self):
@@ -50,8 +50,8 @@ class EpgDiscoveryTests(unittest.TestCase):
                 [
                     "SkyNews.uk",
                     "NHKWorldJapan.jp",
-                    "--playlist",
-                    str(ROOT / "playlists/news.m3u"),
+                    "--catalog",
+                    str(ROOT / "channels/catalog.json"),
                 ]
             )
 

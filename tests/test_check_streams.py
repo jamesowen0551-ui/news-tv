@@ -66,6 +66,19 @@ https://media.example/two/master.m3u8
             with self.assertRaisesRegex(ValueError, "duplicate tvg-id"):
                 _load_channels([path])
 
+    def test_playlist_loader_accepts_china_recommended_group(self):
+        contents = '''#EXTM3U x-tvg-url="https://raw.githubusercontent.com/jamesowen0551-ui/news-tv/main/epg/epg.xml"
+#EXTINF:-1 tvg-id="Example.cn" tvg-name="Example China" group-title="China Recommended",Example China
+https://media.example/live/master.m3u8
+'''
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "news-cn.m3u"
+            path.write_text(contents, encoding="utf-8")
+            channels = _load_channels([path])
+
+        self.assertEqual(len(channels), 1)
+        self.assertEqual(channels[0].group, "China Recommended")
+
     def test_master_manifest_requires_stream_inf_and_parses_quality(self):
         manifest = '''#EXTM3U
 #EXT-X-STREAM-INF:BANDWIDTH=2500000,AVERAGE-BANDWIDTH=2200000,RESOLUTION=1920x1080

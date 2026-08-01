@@ -30,7 +30,11 @@ jobs:
       - name: Check generated favorites
         id: favorites_check
         continue-on-error: true
-        run: python3 scripts/generate_favorites.py --check
+        run: |
+          python3 scripts/generate_playlists.py --check
+          python3 scripts/generate_favorites.py --check
+          python3 scripts/generate_favorites_cn.py --check
+          python3 scripts/generate_epg.py --check
 
       - name: Validate published streams
         id: stream_check

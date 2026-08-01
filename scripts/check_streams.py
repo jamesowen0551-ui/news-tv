@@ -18,7 +18,7 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 USER_AGENT = "news-tv-stream-checker/1.0 (+https://github.com/jamesowen0551-ui/news-tv)"
 EPG_URL = "https://raw.githubusercontent.com/jamesowen0551-ui/news-tv/main/epg/epg.xml"
-ALLOWED_GROUPS = {"Finance", "US News", "World News"}
+ALLOWED_GROUPS = {"Finance", "US News", "World News", "China Recommended"}
 MANIFEST_CONTENT_TYPES = {
     "application/mpegurl",
     "application/octet-stream",

@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "epg_url": "https://raw.githubusercontent.com/jamesowen0551-ui/news-tv/main/epg/epg.xml",
+  "profiles": {
+    "global": [
+      "BloombergTV.us",
+      "SchwabNetwork.us",
+      "CBSNews247.us",
+      "NBCNewsNOW.us",
+      "ScrippsNews.us",
+      "SkyNews.uk",
+      "DWEnglish.de",
+      "NHKWorldJapan.jp",
+      "EuronewsEnglish.fr",
+      "AlJazeeraEnglish.qa"
+    ],
+    "china_optimized": [
+      "NHKWorldJapan.jp",
+      "CNAEnglish.sg",
+      "CGTNEnglish.cn",
+      "SchwabNetwork.us"
+    ],
+    "events": []
+  },
+  "channels": [
+    {
+      "tvg_id": "BloombergTV.us",
+      "tvg_name": "Bloomberg TV",
+      "url": "https://bloomberg.com/media-manifest/streams/us.m3u8",
+      "global_group": "Finance",
+      "official_page": "https://www.bloomberg.com/live",
+      "delivery_evidence": "The official Bloomberg live page uses the Bloomberg media manifest."
+    },
+    {
+      "tvg_id": "SchwabNetwork.us",
+      "tvg_name": "Schwab Network",
+      "url": "https://content.uplynk.com/channel/f9aafa1f132e40af9b9e7238bc18d128.m3u8",
+      "global_group": "Finance",
+      "official_page": "https://schwabnetwork.com/waystowatch",
+      "delivery_evidence": "The official site JavaScript references this token-free Uplynk channel."
+    },
+    {
+      "tvg_id": "CBSNews247.us",
+      "tvg_name": "CBS News 24/7",
+      "url": "https://cbsn-us.cbsnstream.cbsnews.com/out/v1/55a8648e8f134e82a470f83d562deeca/master.m3u8",
+      "global_group": "US News",
+      "official_page": "https://www.cbsnews.com/streaming/",
+      "delivery_evidence": "The stream is delivered from the CBS News branded cbsnews.com hostname."
+    },
+    {
+      "tvg_id": "NBCNewsNOW.us",
+      "tvg_name": "NBC News NOW",
+      "url": "https://xumo-drct-nbcnn-ir8ze.fast.nbcuni.com/live/master.m3u8",
+      "global_group": "US News",
+      "official_page": "https://www.nbcnews.com/now",
+      "delivery_evidence": "The stream is delivered from NBCUniversal's fast.nbcuni.com infrastructure."
+    },
+    {
+      "tvg_id": "ScrippsNews.us",
+      "tvg_name": "Scripps News",
+      "url": "https://content.uplynk.com/channel/4bb4901b934c4e029fd4c1abfc766c37.m3u8",
+      "global_group": "US News",
+      "official_page": "https://www.scrippsnews.com/live",
+      "delivery_evidence": "The official page publishes this Uplynk channel in its player metadata."
+    },
+    {
+      "tvg_id": "SkyNews.uk",
+      "tvg_name": "Sky News",
+      "url": "https://linear901-oo-hls0-prd-gtm.delivery.skycdp.com/17501/sde-fast-skynews/master.m3u8",
+      "global_group": "World News",
+      "official_page": "https://news.sky.com/watch-live",
+      "delivery_evidence": "The official player publishes the Sky delivery.skycdp.com master playlist."
+    },
+    {
+      "tvg_id": "DWEnglish.de",
+      "tvg_name": "DW English",
+      "url": "https://dwamdstream104.akamaized.net/hls/live/2015530/dwstream104/master.m3u8",
+      "global_group": "World News",
+      "official_page": "https://www.dw.com/en/live-tv/channel-english",
+      "delivery_evidence": "The official DW English live page uses this DW-branded Akamai delivery channel."
+    },
+    {
+      "tvg_id": "NHKWorldJapan.jp",
+      "tvg_name": "NHK World-Japan",
+      "url": "https://masterpl.hls.nhkworld.jp/hls/w/live/smarttv.m3u8",
+      "global_group": "World News",
+      "official_page": "https://www3.nhk.or.jp/nhkworld/en/live/",
+      "delivery_evidence": "The official player uses the NHK World branded nhkworld.jp HLS domain."
+    },
+    {
+      "tvg_id": "EuronewsEnglish.fr",
+      "tvg_name": "Euronews English",
+      "url": "https://cdn-euronews.akamaized.net/live/eds/euronews-en/25002/index.m3u8",
+      "global_group": "World News",
+      "official_page": "https://www.euronews.com/",
+      "delivery_evidence": "The English channel is delivered through Euronews-branded Akamai infrastructure."
+    },
+    {
+      "tvg_id": "AlJazeeraEnglish.qa",
+      "tvg_name": "Al Jazeera English",
+      "url": "https://live-hls-apps-aje-fa.getaj.net/AJE/index.m3u8",
+      "global_group": "World News",
+      "official_page": "https://www.aljazeera.com/live",
+      "delivery_evidence": "The official live service uses Al Jazeera's getaj.net delivery hostname."
+    },
+    {
+      "tvg_id": "CNAEnglish.sg",
+      "tvg_name": "CNA English",
+      "url": "https://mediacorp-nca-prod-videos-bclive.akamaized.net/6379472319112/ap-southeast-1/6057994443001/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJob3N0IjoicGE2ODB1LmVncmVzcy5wcHRpOHciLCJhY2NvdW50X2lkIjoiNjA1Nzk5NDQ0MzAwMSIsImVobiI6Im1lZGlhY29ycC1uY2EtcHJvZC12aWRlb3MtYmNsaXZlLmFrYW1haXplZC5uZXQiLCJpc3MiOiJibGl2ZS1wbGF5YmFjay1zb3VyY2UtYXBpIiwic3ViIjoicGF0aG1hcHRva2VuIiwiYXVkIjpbIjYwNTc5OTQ0NDMwMDEiXSwianRpIjoiNjM3OTQ3MjMxOTExMiJ9.Cw77amOc6efNO32Sw9nD0SOhjQUc5ewKN8ZWJOPt15Y/playlist-hls.m3u8",
+      "global_group": "",
+      "official_page": "https://www.channelnewsasia.com/watch",
+      "delivery_evidence": "The official CNA Brightcove embed for video 6379472319112 publishes this non-expiring Mediacorp Akamai HLS path."
+    },
+    {
+      "tvg_id": "CGTNEnglish.cn",
+      "tvg_name": "CGTN English",
+      "url": "https://english-livebkali.cgtn.com/live/encgtn.m3u8",
+      "global_group": "",
+      "official_page": "https://www.cgtn.com/tv",
+      "delivery_evidence": "The official CGTN TV script reads this token-free HLS from news.cgtn.com/tv/channel-en.json."
+    }
+  ]
+}

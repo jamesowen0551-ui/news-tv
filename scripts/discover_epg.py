@@ -9,13 +9,13 @@ import sys
 from pathlib import Path
 
 if __package__:
-    from .check_streams import parse_m3u_text
+    from .channel_catalog import load_catalog_text
 else:
-    from check_streams import parse_m3u_text
+    from channel_catalog import load_catalog_text
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_PLAYLIST = ROOT / "playlists/news.m3u"
+DEFAULT_CATALOG = ROOT / "channels/catalog.json"
 EPG_CANDIDATES: dict[str, list[dict[str, str]]] = {}
 NO_SOURCE_NOTE = (
     "No official public EPG source with confirmed reuse terms is registered. "
@@ -24,24 +24,21 @@ NO_SOURCE_NOTE = (
 
 
 def discover_candidates(
-    tvg_ids: list[str], playlist_text: str
+    tvg_ids: list[str], catalog_text: str
 ) -> list[dict[str, object]]:
-    channels = parse_m3u_text(playlist_text, source="canonical playlist")
-    by_id = {channel.tvg_id: channel for channel in channels}
+    catalog = load_catalog_text(catalog_text)
     results: list[dict[str, object]] = []
     seen: set[str] = set()
     for tvg_id in tvg_ids:
         if tvg_id in seen:
             raise ValueError(f"duplicate tvg-id input: {tvg_id}")
         seen.add(tvg_id)
-        channel = by_id.get(tvg_id)
-        if channel is None:
-            raise ValueError(f"unknown tvg-id (exact matching only): {tvg_id}")
+        channel = catalog.channel_by_id(tvg_id)
         candidates = EPG_CANDIDATES.get(tvg_id, [])
         results.append(
             {
                 "tvg_id": tvg_id,
-                "channel": channel.name,
+                "channel": channel.tvg_name,
                 "status": "candidates-reviewed" if candidates else "no-confirmed-source",
                 "candidates": candidates,
                 "note": NO_SOURCE_NOTE if not candidates else "Candidates require manual review.",
@@ -53,12 +50,12 @@ def discover_candidates(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("tvg_ids", nargs="+", help="exact full tvg-id values")
-    parser.add_argument("--playlist", type=Path, default=DEFAULT_PLAYLIST)
+    parser.add_argument("--catalog", type=Path, default=DEFAULT_CATALOG)
     args = parser.parse_args(argv)
 
     try:
         results = discover_candidates(
-            args.tvg_ids, args.playlist.read_text(encoding="utf-8")
+            args.tvg_ids, args.catalog.read_text(encoding="utf-8")
         )
     except (OSError, UnicodeError, ValueError) as error:
         print(f"FAIL EPG discovery: {error}", file=sys.stderr)

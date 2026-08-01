@@ -28,6 +28,18 @@ Canonical combined playlist:
 https://raw.githubusercontent.com/jamesowen0551-ui/news-tv/main/playlists/news.m3u
 ```
 
+China mainland household playlist:
+
+```text
+https://raw.githubusercontent.com/jamesowen0551-ui/news-tv/main/playlists/news-cn.m3u
+```
+
+The **Global Playlist** is the unchanged ten-channel release monitored from
+GitHub Actions' overseas network. The **China Playlist** is a separate, smaller
+profile based on manual China mainland residential-broadband testing. Its four
+entries use the common `China Recommended` group. Global Health and China
+Compatibility are independent signals; neither automatically changes a playlist.
+
 EPG (XMLTV identity framework):
 
 ```text
@@ -38,6 +50,12 @@ Favorites playlist:
 
 ```text
 https://raw.githubusercontent.com/jamesowen0551-ui/news-tv/main/playlists/favorites.m3u
+```
+
+China Favorites playlist:
+
+```text
+https://raw.githubusercontent.com/jamesowen0551-ui/news-tv/main/playlists/favorites-cn.m3u
 ```
 
 Legacy combined playlist (fully supported for existing installations):
@@ -66,12 +84,20 @@ canonical path.
 | US News | CBS News 24/7, NBC News NOW, Scripps News |
 | World News | Sky News, DW English, NHK World-Japan, Euronews English, Al Jazeera English |
 
+China-optimized profile: NHK World-Japan, CNA English, CGTN English, and Schwab
+Network. CNA English and CGTN English are China-profile records and are not added
+to or substituted into the unchanged Global Playlist.
+
 See [docs/sources.md](docs/sources.md) for first-party availability evidence, delivery decisions, and candidates withheld from this release.
 
 ## Sony Android TV setup
 
 Install one IPTV player from Google Play on the television, then import these URLs.
 App labels can vary slightly between versions.
+
+For overseas networks, use the Global Playlist below. For a China mainland home
+connection, use the China Playlist URL above in the same M3U field. Both profiles
+use the same EPG URL.
 
 ```text
 M3U URL:
@@ -117,8 +143,8 @@ automatically, add the XMLTV URL manually using the app's EPG settings.
 5. Save the provider and run a provider/EPG update.
 
 For category-only viewing, use one of the category URLs instead. Every published
-playlist carries the same EPG URL and preserves the Finance, US News, and World
-News groups.
+playlist carries the same EPG URL. The global profile preserves Finance, US News,
+and World News; the China profile uses `China Recommended`.
 
 ## Favorites and EPG behavior
 
@@ -127,19 +153,22 @@ DW English, and CBS News 24/7 in priority order. It is a separate quick-access
 playlist and does not change the categories in the full playlist.
 
 Favorites are generated rather than maintained by hand. Edit
-`config/favorites.yaml` using exact full `tvg-id` values already present in
-`playlists/news.m3u`, then run:
+`config/favorites.yaml` or `config/favorites-cn.yaml` using exact full `tvg-id`
+values already present in `channels/catalog.json`, then run:
 
 ```bash
 python3 scripts/generate_favorites.py
 python3 scripts/generate_favorites.py --check
+python3 scripts/generate_favorites_cn.py
+python3 scripts/generate_favorites_cn.py --check
 ```
 
-The generator preserves configuration order and copies only existing main-playlist
-entries. Unknown IDs, duplicates, aliases, URLs, and extra YAML keys fail. It
-cannot introduce a new stream URL.
+The generators preserve configuration order and resolve facts by full, exact ID.
+Unknown IDs, duplicates, aliases, URLs, and extra YAML keys fail. Favorites-CN
+contains the same four IDs as the China Playlist in its requested order. Neither
+Favorites config can introduce a stream URL.
 
-`epg/epg.xml` is intentionally conservative. It currently maps the ten stable
+`epg/epg.xml` is intentionally conservative. It currently maps all twelve catalog
 `tvg-id` values to their channel names but contains no programme entries. No show
 title or broadcast time is invented. Programme data will be added only when an
 official public source with suitable reuse terms is confirmed.
@@ -159,18 +188,38 @@ The script does not use the network, modify `epg/epg.xml`, or create programme d
 ```text
 news.m3u                    # legacy-compatible mirror
 playlists/news.m3u          # canonical combined playlist
+playlists/news-cn.m3u       # China mainland household profile
 playlists/finance.m3u
 playlists/us-news.m3u
 playlists/world-news.m3u
 playlists/favorites.m3u
+playlists/favorites-cn.m3u
 playlists/events.m3u
+channels/catalog.json       # single source of truth for channel facts
 config/favorites.yaml
+config/favorites-cn.yaml
 epg/epg.xml
 scripts/check_streams.py
 scripts/check_mirrors.py
+scripts/generate_playlists.py
 scripts/generate_favorites.py
+scripts/generate_favorites_cn.py
+scripts/generate_epg.py
 scripts/discover_epg.py
-reports/                    # generated health reports (not committed)
+reports/china-compatibility.md  # tracked manual China observations
+reports/                    # generated Global Health reports are not committed
+```
+
+`channels/catalog.json` is the single source of truth for channel URLs and IPTV
+metadata. Global, China-optimized, category, event, and both Favorites playlists
+are generated from it; published M3U files must not be edited by hand. Useful
+read-only consistency checks are:
+
+```bash
+python3 scripts/generate_playlists.py --check
+python3 scripts/generate_favorites.py --check
+python3 scripts/generate_favorites_cn.py --check
+python3 scripts/generate_epg.py --check
 ```
 
 ## Inclusion policy
@@ -248,16 +297,23 @@ validates all live streams, compares GitHub Raw with jsDelivr, and uploads both
 `stream-health-report` artifact. The legacy report path remains supported.
 
 Automation never edits playlists, replaces URLs, or adds an unreviewed source.
+The scheduled live probe remains the **Global Health** check and intentionally
+does not probe `playlists/news-cn.m3u` as a substitute for testing from China.
+Manual China observations are kept separately in
+[`reports/china-compatibility.md`](reports/china-compatibility.md); missing startup
+or resolution measurements stay marked `Not recorded`.
 
 ## Maintenance principles
 
 - Prefer official public HLS and broadcaster-controlled delivery.
+- Keep `channels/catalog.json` as the only channel fact source and generate every playlist.
 - Keep the catalog small when provenance or stability is uncertain.
 - Treat health scores as observations, never as automatic removal instructions.
 - Keep Favorites derived from the canonical playlist and exact stable IDs.
 - Require GitHub Raw and CDN bytes to match; never use the CDN as a different source.
 - Keep EPG discovery read-only until an official reusable schedule is confirmed.
 - Never auto-replace a failed channel with an unreviewed URL.
+- Never auto-delete a channel because of either Global Health or China Compatibility.
 
 ## Future event playlist
 

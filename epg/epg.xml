@@ -30,4 +30,10 @@
   <channel id="AlJazeeraEnglish.qa">
     <display-name lang="en">Al Jazeera English</display-name>
   </channel>
+  <channel id="CNAEnglish.sg">
+    <display-name lang="en">CNA English</display-name>
+  </channel>
+  <channel id="CGTNEnglish.cn">
+    <display-name lang="en">CGTN English</display-name>
+  </channel>
 </tv>

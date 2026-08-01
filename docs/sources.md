@@ -18,6 +18,8 @@ This project treats a broadcaster's official public live page as evidence that t
 | NHK World-Japan | [NHK World Live](https://www3.nhk.or.jp/nhkworld/en/live/) | `nhkworld.jp` HLS domain | PASS — 1080p, 6.74 Mbps |
 | Euronews English | [Euronews](https://www.euronews.com/) | Euronews-branded Akamai delivery hostname | PASS — 720p, 3.64 Mbps |
 | Al Jazeera English | [Al Jazeera Live](https://www.aljazeera.com/live) | Al Jazeera `getaj.net` delivery hostname | PASS — 1080p, 4.79 Mbps |
+| CNA English | [CNA Watch](https://www.channelnewsasia.com/watch) | The official CNA Brightcove embed identifies live video `6379472319112`; its public playback API publishes the selected non-expiring Mediacorp-branded Akamai HLS path | PASS — 1080p during catalog review; China compatibility is recorded separately |
+| CGTN English | [CGTN TV](https://www.cgtn.com/tv) | The official page script reads `news.cgtn.com/tv/channel-en.json`, whose English record publishes the token-free `english-livebkali.cgtn.com` HLS | PASS — 1080p during catalog review; China compatibility is recorded separately |
 
 Operational measurements are snapshots, not guarantees. The scheduled checker is the source of current health information.
 
@@ -29,7 +31,7 @@ Operational measurements are snapshots, not guarantees. The scheduled checker is
 | ABC News Live | FAIL | The official Akamai master manifest returned successfully, but every advertised media variant tested returned HTTP 404. |
 | LiveNOW from FOX | PASS — 720p, 2.78 Mbps | The official site confirms free distribution, but the tested Amagi LG feed was not found in the current official site configuration. Pending exact provenance confirmation. |
 | France 24 English | FAIL | The official public URL returned a media playlist directly and did not contain the required `#EXT-X-STREAM-INF` variant playlist. |
-| CNA | PASS — 1080p, 5.06 Mbps | The longstanding CloudFront feed is unbranded and its current mapping could not be confirmed from CNA's official player configuration. Pending stronger first-party evidence. |
+| CNA historical CloudFront candidate | PASS — 1080p, 5.06 Mbps | This historical CloudFront URL remains rejected because it is unbranded. The China profile uses the separately confirmed official CNA Brightcove → Mediacorp Akamai path instead. |
 
 CNN, CNBC, BBC News, and the Fox News cable channel were intentionally not researched for inclusion because unauthorized restreams of those channels are outside project policy. LiveNOW from FOX is a separate free streaming service, but is still withheld until its exact delivery URL is confirmed.
 
@@ -43,3 +45,10 @@ No `tvg-logo` URLs are included in this release. Public visibility of a logo is 
 contains no programme entries because no official public schedule source with
 suitable reuse terms has been confirmed. The project does not synthesize show
 titles or broadcast times.
+
+## Profile scope
+
+CNA English and CGTN English are cataloged for the manually verified
+China-optimized profile. Their successful catalog-review HLS checks do not add
+them to the unchanged Global Playlist, and the overseas Global Health job is not
+treated as China connectivity evidence.

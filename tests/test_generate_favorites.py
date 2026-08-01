@@ -22,9 +22,9 @@ class FavoritesGeneratorTests(unittest.TestCase):
   - SkyNews.uk
   - BloombergTV.us
 """
-        master = (ROOT / "playlists/news.m3u").read_text(encoding="utf-8")
+        catalog = (ROOT / "channels/catalog.json").read_text(encoding="utf-8")
 
-        generated = module.generate_favorites_text(config, master)
+        generated = module.generate_favorites_text(config, catalog)
         channels = parse_m3u_text(generated)
 
         self.assertEqual(
@@ -34,11 +34,11 @@ class FavoritesGeneratorTests(unittest.TestCase):
 
     def test_unknown_id_is_rejected_without_fuzzy_matching(self):
         module = self._module()
-        master = (ROOT / "playlists/news.m3u").read_text(encoding="utf-8")
+        catalog = (ROOT / "channels/catalog.json").read_text(encoding="utf-8")
 
         with self.assertRaisesRegex(ValueError, "not found.*BloombergTV"):
             module.generate_favorites_text(
-                "favorites:\n  - BloombergTV\n", master
+                "favorites:\n  - BloombergTV\n", catalog
             )
 
     def test_duplicate_ids_urls_and_extra_keys_are_rejected(self):
@@ -59,18 +59,18 @@ class FavoritesGeneratorTests(unittest.TestCase):
         with TemporaryDirectory() as directory:
             root = Path(directory)
             config = root / "favorites.yaml"
-            master = root / "news.m3u"
+            catalog = root / "catalog.json"
             output = root / "favorites.m3u"
             config.write_text("favorites:\n  - BloombergTV.us\n", encoding="utf-8")
-            master.write_bytes((ROOT / "playlists/news.m3u").read_bytes())
+            catalog.write_bytes((ROOT / "channels/catalog.json").read_bytes())
 
             self.assertEqual(
                 module.main(
                     [
                         "--config",
                         str(config),
-                        "--playlist",
-                        str(master),
+                        "--catalog",
+                        str(catalog),
                         "--output",
                         str(output),
                     ]
@@ -84,8 +84,8 @@ class FavoritesGeneratorTests(unittest.TestCase):
                     [
                         "--config",
                         str(config),
-                        "--playlist",
-                        str(master),
+                        "--catalog",
+                        str(catalog),
                         "--output",
                         str(output),
                         "--check",
@@ -99,8 +99,8 @@ class FavoritesGeneratorTests(unittest.TestCase):
                     [
                         "--config",
                         str(config),
-                        "--playlist",
-                        str(master),
+                        "--catalog",
+                        str(catalog),
                         "--output",
                         str(output),
                         "--check",
@@ -118,13 +118,27 @@ class FavoritesGeneratorTests(unittest.TestCase):
 
         generated = module.generate_favorites_text(
             config.read_text(encoding="utf-8"),
-            (ROOT / "playlists/news.m3u").read_text(encoding="utf-8"),
+            (ROOT / "channels/catalog.json").read_text(encoding="utf-8"),
         )
 
         self.assertEqual(
             generated.encode("utf-8"),
             (ROOT / "playlists/favorites.m3u").read_bytes(),
         )
+
+    def test_generated_urls_come_only_from_catalog(self):
+        module = self._module()
+        from scripts.channel_catalog import load_catalog_text
+
+        catalog_text = (ROOT / "channels/catalog.json").read_text(encoding="utf-8")
+        catalog = load_catalog_text(catalog_text)
+        generated = module.generate_favorites_text(
+            (ROOT / "config/favorites.yaml").read_text(encoding="utf-8"),
+            catalog_text,
+        )
+
+        for channel in parse_m3u_text(generated):
+            self.assertEqual(channel.url, catalog.channel_by_id(channel.tvg_id).url)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 import unittest
 import xml.etree.ElementTree as ET
+import json
 from pathlib import Path
 
 from scripts.check_streams import parse_m3u_text
@@ -102,6 +103,8 @@ class PublishedPlaylistTests(unittest.TestCase):
             "playlists/us-news.m3u",
             "playlists/world-news.m3u",
             "playlists/favorites.m3u",
+            "playlists/news-cn.m3u",
+            "playlists/favorites-cn.m3u",
             "playlists/events.m3u",
         )
         for path in paths:
@@ -125,8 +128,11 @@ class PublishedPlaylistTests(unittest.TestCase):
         epg_path = ROOT / "epg/epg.xml"
         self.assertTrue(epg_path.exists(), "missing XMLTV EPG framework")
         epg_root = ET.parse(epg_path).getroot()
-        channels = self._channels("playlists/news.m3u")
-        expected = {channel.tvg_id: channel.name for channel in channels}
+        catalog = json.loads((ROOT / "channels/catalog.json").read_text(encoding="utf-8"))
+        expected = {
+            channel["tvg_id"]: channel["tvg_name"]
+            for channel in catalog["channels"]
+        }
         actual = {
             element.attrib["id"]: element.findtext("display-name")
             for element in epg_root.findall("channel")
@@ -147,7 +153,10 @@ class PublishedPlaylistTests(unittest.TestCase):
         self.assertIn("workflow_dispatch:", workflow)
         self.assertIn("scripts/check_streams.py playlists/news.m3u", workflow)
         self.assertIn("upload-artifact@v4", workflow)
+        self.assertIn("python3 scripts/generate_playlists.py --check", workflow)
         self.assertIn("python3 scripts/generate_favorites.py --check", workflow)
+        self.assertIn("python3 scripts/generate_favorites_cn.py --check", workflow)
+        self.assertIn("python3 scripts/generate_epg.py --check", workflow)
         self.assertIn("python3 scripts/check_mirrors.py", workflow)
         self.assertIn("reports/health-report.md", workflow)
         self.assertIn("reports/stream-report.md", workflow)
@@ -161,6 +170,11 @@ class PublishedPlaylistTests(unittest.TestCase):
             "if: always() && (steps.stream_check.outcome == 'failure'",
             workflow,
         )
+        self.assertNotIn(
+            "scripts/check_streams.py playlists/news-cn.m3u",
+            workflow,
+            "China compatibility must remain a separate manual signal",
+        )
 
     def test_readme_documents_new_and_legacy_urls(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
@@ -172,6 +186,8 @@ class PublishedPlaylistTests(unittest.TestCase):
             "https://raw.githubusercontent.com/jamesowen0551-ui/news-tv/main/playlists/us-news.m3u",
             "https://raw.githubusercontent.com/jamesowen0551-ui/news-tv/main/playlists/world-news.m3u",
             EPG_URL,
+            "https://raw.githubusercontent.com/jamesowen0551-ui/news-tv/main/playlists/news-cn.m3u",
+            "https://raw.githubusercontent.com/jamesowen0551-ui/news-tv/main/playlists/favorites-cn.m3u",
         )
         for url in urls:
             with self.subTest(url=url):
@@ -191,17 +207,50 @@ class PublishedPlaylistTests(unittest.TestCase):
             "scripts/generate_favorites.py",
             "scripts/discover_epg.py",
             "reports/health-report.md",
+            "reports/china-compatibility.md",
+            "channels/catalog.json",
+            "scripts/generate_playlists.py --check",
+            "scripts/generate_favorites_cn.py --check",
+            "scripts/generate_epg.py --check",
+            "China Recommended",
+            "Global Playlist",
+            "China Playlist",
             "GitHub Raw",
             "jsDelivr",
         ):
             with self.subTest(maintenance_item=maintenance_item):
                 self.assertIn(maintenance_item, readme)
 
+    def test_source_review_documents_official_china_delivery_chains(self):
+        sources = (ROOT / "docs/sources.md").read_text(encoding="utf-8")
+
+        self.assertIn("CNA English", sources)
+        self.assertIn("official CNA Brightcove", sources)
+        self.assertIn("Mediacorp", sources)
+        self.assertIn("CGTN English", sources)
+        self.assertIn("news.cgtn.com/tv/channel-en.json", sources)
+        self.assertIn("english-livebkali.cgtn.com", sources)
+        self.assertIn("historical CloudFront", sources)
+
     def test_reports_directory_is_preserved_without_tracking_reports(self):
         self.assertTrue(
             (ROOT / "reports/.gitkeep").is_file(),
             "reports directory must survive a fresh clone",
         )
+        report = (ROOT / "reports/china-compatibility.md").read_text(
+            encoding="utf-8"
+        )
+        for field in (
+            "Channel",
+            "Test environment",
+            "Status",
+            "Startup",
+            "Resolution",
+            "Notes",
+        ):
+            self.assertIn(field, report)
+        self.assertIn("manual", report.casefold())
+        self.assertIn("Global Health", report)
 
     def test_forbidden_pay_tv_channels_are_absent(self):
         names = {

@@ -1,0 +1,51 @@
+name: Check news streams
+
+on:
+  schedule:
+    # 04:00 Asia/Shanghai (UTC+8), every day.
+    - cron: "0 20 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stream-health-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate published streams
+        id: stream_check
+        continue-on-error: true
+        run: |
+          python3 scripts/check_streams.py news.m3u \
+            --timeout 15 \
+            --report reports/stream-report.md
+
+      - name: Upload Markdown report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stream-health-report
+          path: reports/stream-report.md
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Propagate stream check failure
+        if: steps.stream_check.outcome == 'failure'
+        run: |
+          echo "One or more published streams failed validation. Review the uploaded report."
+          exit 1

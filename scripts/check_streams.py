@@ -17,6 +17,8 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 
 USER_AGENT = "news-tv-stream-checker/1.0 (+https://github.com/jamesowen0551-ui/news-tv)"
+EPG_URL = "https://raw.githubusercontent.com/jamesowen0551-ui/news-tv/main/epg/epg.xml"
+ALLOWED_GROUPS = {"Finance", "US News", "World News"}
 MANIFEST_CONTENT_TYPES = {
     "application/mpegurl",
     "application/octet-stream",
@@ -36,6 +38,7 @@ class Channel:
     group: str = ""
     logo: str = ""
     tvg_id: str = ""
+    tvg_name: str = ""
     source: str = ""
 
 
@@ -73,9 +76,19 @@ def _reject_html(text: str) -> None:
 def _require_hls(text: str) -> list[str]:
     _reject_html(text)
     lines = [line.strip() for line in text.lstrip("\ufeff").splitlines()]
-    if not lines or lines[0] != "#EXTM3U":
+    if not lines or lines[0].partition(" ")[0] != "#EXTM3U":
         raise ValueError("response is not an HLS manifest (#EXTM3U missing)")
     return lines
+
+
+def _header_attributes(text: str) -> dict[str, str]:
+    lines = _require_hls(text)
+    attributes: dict[str, str] = {}
+    for token in shlex.split(lines[0][len("#EXTM3U") :]):
+        key, equals, value = token.partition("=")
+        if equals:
+            attributes[key] = value
+    return attributes
 
 
 def parse_m3u_text(text: str, source: str = "") -> list[Channel]:
@@ -103,6 +116,7 @@ def parse_m3u_text(text: str, source: str = "") -> list[Channel]:
                     group=attributes.get("group-title", ""),
                     logo=attributes.get("tvg-logo", ""),
                     tvg_id=attributes.get("tvg-id", ""),
+                    tvg_name=attributes.get("tvg-name", ""),
                     source=source,
                 )
             )
@@ -373,11 +387,48 @@ def render_markdown(
     return "\n".join(lines)
 
 
+def _validate_playlist_metadata(
+    text: str, channels: list[Channel], source: str
+) -> None:
+    header = _header_attributes(text)
+    epg_url = header.get("x-tvg-url", "")
+    if not epg_url:
+        raise ValueError(f"{source}: missing EPG URL (x-tvg-url)")
+    if epg_url != EPG_URL:
+        raise ValueError(f"{source}: invalid EPG URL: {epg_url}")
+
+    seen_ids: set[str] = set()
+    for channel in channels:
+        label = f"{source}: {channel.name}"
+        if not channel.tvg_id:
+            raise ValueError(f"{label}: missing tvg-id")
+        if not re.fullmatch(r"[A-Za-z0-9._-]+", channel.tvg_id):
+            raise ValueError(f"{label}: invalid tvg-id")
+        if channel.tvg_id in seen_ids:
+            raise ValueError(f"{label}: duplicate tvg-id: {channel.tvg_id}")
+        seen_ids.add(channel.tvg_id)
+        if not channel.tvg_name:
+            raise ValueError(f"{label}: missing tvg-name")
+        if channel.tvg_name != channel.name:
+            raise ValueError(f"{label}: mismatched tvg-name")
+        if channel.group not in ALLOWED_GROUPS:
+            raise ValueError(f"{label}: invalid group-title: {channel.group}")
+        if channel.logo and not channel.logo.startswith("https://"):
+            raise ValueError(f"{label}: non-HTTPS logo")
+        if not channel.url.startswith("https://"):
+            raise ValueError(f"{label}: stream URL must use HTTPS")
+        if "?" in channel.url:
+            raise ValueError(f"{label}: stream URL contains query parameters")
+
+
 def _load_channels(paths: list[Path]) -> list[Channel]:
     channels: list[Channel] = []
     seen: set[tuple[str, str]] = set()
     for path in paths:
-        for channel in parse_m3u_text(path.read_text(encoding="utf-8"), source=str(path)):
+        text = path.read_text(encoding="utf-8")
+        parsed = parse_m3u_text(text, source=str(path))
+        _validate_playlist_metadata(text, parsed, str(path))
+        for channel in parsed:
             key = (channel.name, channel.url)
             if key not in seen:
                 channels.append(channel)

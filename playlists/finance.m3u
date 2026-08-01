@@ -1,5 +1,5 @@
-#EXTM3U
-#EXTINF:-1 tvg-id="BloombergTV.us" group-title="Finance",Bloomberg TV
+#EXTM3U x-tvg-url="https://raw.githubusercontent.com/jamesowen0551-ui/news-tv/main/epg/epg.xml"
+#EXTINF:-1 tvg-id="BloombergTV.us" tvg-name="Bloomberg TV" group-title="Finance",Bloomberg TV
 https://bloomberg.com/media-manifest/streams/us.m3u8
-#EXTINF:-1 tvg-id="SchwabNetwork.us" group-title="Finance",Schwab Network
+#EXTINF:-1 tvg-id="SchwabNetwork.us" tvg-name="Schwab Network" group-title="Finance",Schwab Network
 https://content.uplynk.com/channel/f9aafa1f132e40af9b9e7238bc18d128.m3u8

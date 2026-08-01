@@ -1,4 +1,4 @@
-#EXTM3U
+#EXTM3U x-tvg-url="https://raw.githubusercontent.com/jamesowen0551-ui/news-tv/main/epg/epg.xml"
 # Reserved for verified, time-bounded official event streams only.
 # Possible future coverage: FOMC, ECB, IMF, World Bank, NASA TV,
 # Apple Keynote, Google I/O, NVIDIA GTC, and OpenAI Event.

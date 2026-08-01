@@ -7,6 +7,7 @@ from tempfile import TemporaryDirectory
 
 from scripts.check_streams import (
     Channel,
+    _load_channels,
     parse_master_manifest,
     parse_media_manifest,
     parse_m3u_text,
@@ -19,7 +20,7 @@ from scripts.check_streams import (
 class PlaylistParsingTests(unittest.TestCase):
     def test_parses_extended_m3u_channel_metadata(self):
         playlist = '''#EXTM3U
-#EXTINF:-1 tvg-id="example" tvg-logo="https://img.example/logo.png" group-title="World News",Example News
+#EXTINF:-1 tvg-id="example" tvg-name="Example News" tvg-logo="https://img.example/logo.png" group-title="World News",Example News
 https://media.example/live/master.m3u8
 '''
 
@@ -29,7 +30,39 @@ https://media.example/live/master.m3u8
         self.assertEqual(channels[0].name, "Example News")
         self.assertEqual(channels[0].group, "World News")
         self.assertEqual(channels[0].logo, "https://img.example/logo.png")
+        self.assertEqual(getattr(channels[0], "tvg_name", None), "Example News")
         self.assertEqual(channels[0].url, "https://media.example/live/master.m3u8")
+
+    def test_playlist_loader_requires_complete_metadata(self):
+        valid_header = '#EXTM3U x-tvg-url="https://raw.githubusercontent.com/jamesowen0551-ui/news-tv/main/epg/epg.xml"\n'
+        cases = {
+            "missing EPG URL": '#EXTM3U\n#EXTINF:-1 tvg-id="Example" tvg-name="Example News" group-title="World News",Example News\nhttps://media.example/live/master.m3u8\n',
+            "missing tvg-id": valid_header + '#EXTINF:-1 tvg-name="Example News" group-title="World News",Example News\nhttps://media.example/live/master.m3u8\n',
+            "missing tvg-name": valid_header + '#EXTINF:-1 tvg-id="Example" group-title="World News",Example News\nhttps://media.example/live/master.m3u8\n',
+            "mismatched tvg-name": valid_header + '#EXTINF:-1 tvg-id="Example" tvg-name="Different" group-title="World News",Example News\nhttps://media.example/live/master.m3u8\n',
+            "invalid group-title": valid_header + '#EXTINF:-1 tvg-id="Example" tvg-name="Example News" group-title="Sports",Example News\nhttps://media.example/live/master.m3u8\n',
+            "non-HTTPS logo": valid_header + '#EXTINF:-1 tvg-id="Example" tvg-name="Example News" tvg-logo="http://img.example/logo.png" group-title="World News",Example News\nhttps://media.example/live/master.m3u8\n',
+        }
+
+        for expected, contents in cases.items():
+            with self.subTest(expected=expected), TemporaryDirectory() as directory:
+                path = Path(directory) / "playlist.m3u"
+                path.write_text(contents, encoding="utf-8")
+                with self.assertRaisesRegex(ValueError, expected):
+                    _load_channels([path])
+
+    def test_playlist_loader_rejects_duplicate_tvg_ids(self):
+        contents = '''#EXTM3U x-tvg-url="https://raw.githubusercontent.com/jamesowen0551-ui/news-tv/main/epg/epg.xml"
+#EXTINF:-1 tvg-id="Duplicate" tvg-name="One" group-title="World News",One
+https://media.example/one/master.m3u8
+#EXTINF:-1 tvg-id="Duplicate" tvg-name="Two" group-title="US News",Two
+https://media.example/two/master.m3u8
+'''
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "playlist.m3u"
+            path.write_text(contents, encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "duplicate tvg-id"):
+                _load_channels([path])
 
     def test_master_manifest_requires_stream_inf_and_parses_quality(self):
         manifest = '''#EXTM3U

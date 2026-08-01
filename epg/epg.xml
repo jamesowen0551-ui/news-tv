@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tv generator-info-name="News TV" generator-info-url="https://github.com/jamesowen0551-ui/news-tv">
+  <channel id="BloombergTV.us">
+    <display-name lang="en">Bloomberg TV</display-name>
+  </channel>
+  <channel id="SchwabNetwork.us">
+    <display-name lang="en">Schwab Network</display-name>
+  </channel>
+  <channel id="CBSNews247.us">
+    <display-name lang="en">CBS News 24/7</display-name>
+  </channel>
+  <channel id="NBCNewsNOW.us">
+    <display-name lang="en">NBC News NOW</display-name>
+  </channel>
+  <channel id="ScrippsNews.us">
+    <display-name lang="en">Scripps News</display-name>
+  </channel>
+  <channel id="SkyNews.uk">
+    <display-name lang="en">Sky News</display-name>
+  </channel>
+  <channel id="DWEnglish.de">
+    <display-name lang="en">DW English</display-name>
+  </channel>
+  <channel id="NHKWorldJapan.jp">
+    <display-name lang="en">NHK World-Japan</display-name>
+  </channel>
+  <channel id="EuronewsEnglish.fr">
+    <display-name lang="en">Euronews English</display-name>
+  </channel>
+  <channel id="AlJazeeraEnglish.qa">
+    <display-name lang="en">Al Jazeera English</display-name>
+  </channel>
+</tv>

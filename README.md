@@ -6,7 +6,25 @@ The project optimizes for provenance and stability, not channel count. A stream 
 
 ## Playlist URLs
 
-Combined playlist:
+Canonical combined playlist:
+
+```text
+https://raw.githubusercontent.com/jamesowen0551-ui/news-tv/main/playlists/news.m3u
+```
+
+EPG (XMLTV identity framework):
+
+```text
+https://raw.githubusercontent.com/jamesowen0551-ui/news-tv/main/epg/epg.xml
+```
+
+Favorites playlist:
+
+```text
+https://raw.githubusercontent.com/jamesowen0551-ui/news-tv/main/playlists/favorites.m3u
+```
+
+Legacy combined playlist (fully supported for existing installations):
 
 ```text
 https://raw.githubusercontent.com/jamesowen0551-ui/news-tv/main/news.m3u
@@ -20,6 +38,10 @@ https://raw.githubusercontent.com/jamesowen0551-ui/news-tv/main/playlists/us-new
 https://raw.githubusercontent.com/jamesowen0551-ui/news-tv/main/playlists/world-news.m3u
 ```
 
+Root `news.m3u` is kept byte-for-byte identical to `playlists/news.m3u`. Existing
+television configurations do not need to migrate; all new setup examples use the
+canonical path.
+
 ## Channels
 
 | Category | Channels |
@@ -32,37 +54,81 @@ See [docs/sources.md](docs/sources.md) for first-party availability evidence, de
 
 ## Sony Android TV setup
 
-Install one IPTV player from Google Play on the television, then import the combined raw URL above. App labels can vary slightly between versions.
+Install one IPTV player from Google Play on the television, then import these URLs.
+App labels can vary slightly between versions.
+
+```text
+M3U URL:
+https://raw.githubusercontent.com/jamesowen0551-ui/news-tv/main/playlists/news.m3u
+
+EPG URL:
+https://raw.githubusercontent.com/jamesowen0551-ui/news-tv/main/epg/epg.xml
+```
+
+The M3U header already includes the EPG URL. If the player does not import it
+automatically, add the XMLTV URL manually using the app's EPG settings.
 
 ### TiviMate
 
 1. Open **Add playlist**.
 2. Choose **M3U playlist** and then **Enter URL**.
 3. Enter the combined raw URL.
-4. Name the playlist `News TV`, complete setup, and open **TV**.
+4. If prompted for an EPG source, enter the EPG URL; otherwise add it later in the playlist's EPG settings.
+5. Name the playlist `News TV`, complete setup, and open **TV**.
 
 ### Televizo
 
 1. Open **Playlists** and select **Create playlist**.
 2. Choose **New M3U playlist**.
 3. Enter `News TV` as the name and paste the combined raw URL as the playlist link.
-4. Save, open the playlist, and refresh it if the channels do not appear immediately.
+4. Add the EPG URL when Televizo offers an EPG source, then save.
+5. Open the playlist and refresh it if the channels do not appear immediately.
 
 ### Sparkle TV
 
 1. Open **Sources** and select **Add new source**.
 2. Choose **Playlist** as the source type.
 3. Paste the combined raw URL and name the source `News TV`.
-4. Finish setup and allow Sparkle TV to synchronize the source.
+4. Add the EPG URL as an XMLTV source if it was not detected from the playlist header.
+5. Finish setup and allow Sparkle TV to synchronize the source.
 
 ### OTT Navigator
 
 1. Open **Settings**, then **Provider** (or **Providers**).
 2. Select **Add provider** and choose a generic **Playlist/M3U** provider.
 3. Paste the combined raw URL into the playlist URL field.
-4. Save the provider and run a provider update.
+4. If necessary, open **Settings → Provider → News TV → Parameters → EPG** and enter the EPG URL.
+5. Save the provider and run a provider/EPG update.
 
-For category-only viewing, use one of the category URLs instead. No EPG URL is required; playlist groups provide the Finance, US News, and World News sections.
+For category-only viewing, use one of the category URLs instead. Every published
+playlist carries the same EPG URL and preserves the Finance, US News, and World
+News groups.
+
+## Favorites and EPG behavior
+
+`playlists/favorites.m3u` contains Bloomberg TV, Sky News, NHK World-Japan,
+DW English, and CBS News 24/7 in priority order. It is a separate quick-access
+playlist and does not change the categories in the full playlist.
+
+`epg/epg.xml` is intentionally conservative. It currently maps the ten stable
+`tvg-id` values to their channel names but contains no programme entries. No show
+title or broadcast time is invented. Programme data will be added only when an
+official public source with suitable reuse terms is confirmed.
+
+## Repository layout
+
+```text
+news.m3u                    # legacy-compatible mirror
+playlists/news.m3u          # canonical combined playlist
+playlists/finance.m3u
+playlists/us-news.m3u
+playlists/world-news.m3u
+playlists/favorites.m3u
+playlists/events.m3u
+epg/epg.xml
+scripts/check_streams.py
+reports/                    # generated health reports (not committed)
+```
 
 ## Inclusion policy
 
@@ -88,13 +154,15 @@ Passing a network test does not establish permission or provenance. For that rea
 The checker uses only the Python standard library:
 
 ```bash
-python3 scripts/check_streams.py news.m3u \
+python3 scripts/check_streams.py playlists/news.m3u \
   --timeout 15 \
   --report reports/stream-report.md
 ```
 
 It verifies:
 
+- Required `x-tvg-url`, `tvg-id`, `tvg-name`, and `group-title` metadata.
+- Unique channel IDs, allowed categories, HTTPS URLs, and optional logo URL format.
 - HTTP status and redirect handling.
 - Content-Type and explicit HTML rejection.
 - A real `#EXTM3U` HLS manifest.

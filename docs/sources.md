@@ -36,3 +36,10 @@ CNN, CNBC, BBC News, and the Fox News cable channel were intentionally not resea
 ## Logos
 
 No `tvg-logo` URLs are included in this release. Public visibility of a logo is not the same as permission to hotlink or redistribute it, and no stable first-party logo usage permission was established during review.
+
+## EPG
+
+`epg/epg.xml` currently contains channel identity mappings only. It deliberately
+contains no programme entries because no official public schedule source with
+suitable reuse terms has been confirmed. The project does not synthesize show
+titles or broadcast times.

@@ -31,7 +31,7 @@ jobs:
         id: stream_check
         continue-on-error: true
         run: |
-          python3 scripts/check_streams.py news.m3u \
+          python3 scripts/check_streams.py playlists/news.m3u \
             --timeout 15 \
             --report reports/stream-report.md
 
